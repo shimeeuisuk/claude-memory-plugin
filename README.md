@@ -25,6 +25,8 @@ so context survives across sessions and machines.
 - 🗂️ **Plain Markdown** — human-readable, zero dependencies, git-friendly, greppable.
 - 🪶 **Local-first** — works offline; syncs automatically when online.
 - 🛡️ **Resilient** — handles silent backup failures and concurrent multi-PC edits.
+- 💬 **Natural-language save** — just say "save this" and it *asks before* saving (no accidental writes).
+- 🗑️ **Safe delete** — remove a memory from local **and** GitHub at once (no zombie resurrection on next sync).
 
 ## Installation
 
@@ -55,6 +57,7 @@ To pull the latest version:
 /claude-memory:setup       # one-time — connect a private memory repo on your GitHub
 /claude-memory:remember    # save the current work as a summary
 /claude-memory:recall      # resume — briefs you on where you left off
+/claude-memory:forget      # delete a memory (from local + GitHub)
 ```
 
 | Command | What it does |
@@ -62,6 +65,10 @@ To pull the latest version:
 | `/claude-memory:setup` | Creates & connects a **private** memory repo on your GitHub (run once) |
 | `/claude-memory:remember` | Summarizes the current session and saves it + auto-backup |
 | `/claude-memory:recall` | Loads past memories and briefs you on the last state |
+| `/claude-memory:forget` | Deletes a memory from **both** local and GitHub (with confirmation) |
+
+You can also just **say it naturally** — "save this" / "기억해둬" — and the plugin will
+confirm before saving (it never writes without asking).
 
 Memory is **pulled automatically at session start** and **pushed automatically after each save**.
 

@@ -5,7 +5,7 @@ allowed-tools: Bash, Write, Read
 ---
 
 너는 지금 `claude-memory` 플러그인의 **저장(remember)** 동작을 수행한다.
-규약은 `skills/memory/SKILL.md` 를 따른다. 핵심만 다시 적으면:
+기억은 `~/.claude-memory/<project>/` 에 마크다운으로 저장한다. 규칙:
 
 ## 할 일
 

@@ -5,7 +5,7 @@ allowed-tools: Bash, Read, Grep
 ---
 
 너는 지금 `claude-memory` 플러그인의 **회상(recall)** 동작을 수행한다.
-규약은 `skills/memory/SKILL.md` 를 따른다.
+기억은 `~/.claude-memory/<project>/` 에서 읽는다.
 
 ## 할 일
 
