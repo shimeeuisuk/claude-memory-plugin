@@ -21,6 +21,22 @@
 
 ---
 
+## ⚡ Quick Start
+
+```text
+/plugin marketplace add shimeeuisuk/claude-memory-plugin
+/plugin install claude-memory
+
+/claude-memory:setup        # 최초 1회 — 내 GitHub에 메모리 저장소 연결
+/claude-memory:remember     # 작업 저장
+/claude-memory:recall       # 다른 날 / 다른 PC에서 이어서
+```
+
+> 필요 조건: [Claude Code](https://claude.com/claude-code) + [GitHub CLI (`gh`)](https://cli.github.com/) 로그인.
+> 자세한 배경·작동 방식은 아래로 ↓
+
+---
+
 ## 🔍 문제 (Why)
 
 Claude Code(및 모든 LLM)는 **세션이 끝나면 맥락을 잃습니다.** 다음 날, 다른 PC에서 켜면
@@ -44,6 +60,41 @@ Claude Code(및 모든 LLM)는 **세션이 끝나면 맥락을 잃습니다.** �
 
 ---
 
+## 📦 설치
+
+**필요 조건**
+- [Claude Code](https://claude.com/claude-code)
+- [GitHub CLI (`gh`)](https://cli.github.com/) — 로그인 상태(`gh auth login`). PC 간 동기화에 사용.
+
+**1. 플러그인 설치** (Claude Code 안에서)
+
+```text
+/plugin marketplace add shimeeuisuk/claude-memory-plugin
+/plugin install claude-memory
+```
+
+> 로컬에서 먼저 시험하려면: `/plugin marketplace add ~/claude-memory-plugin`
+
+**2. 최초 1회 — 내 GitHub에 메모리 저장소 연결**
+
+```text
+/claude-memory:setup
+```
+
+이걸로 설치 끝. 이후부터는 자동으로 동기화됩니다.
+
+## 🚀 사용법
+
+```text
+/claude-memory:remember    # 작업하다가 — 지금까지 한 일을 저장
+/claude-memory:recall      # 다음 날 / 다른 PC에서 — 이어서
+```
+
+- **세션 시작** 시 다른 PC의 기억을 자동으로 받아오고(pull),
+- **작업 저장** 후 자동으로 백업(push)됩니다.
+
+---
+
 ## 🏗️ 작동 방식 (How)
 
 ```mermaid
@@ -58,10 +109,7 @@ flowchart LR
     GH -- "auto pull (세션 시작)" --> BS
 ```
 
-- **세션 시작** → 훅이 자동으로 `git pull` (다른 PC의 기억을 받아옴)
-- **작업 저장** → 요약 `.md` 생성 후 자동 `git push` (내 GitHub로 백업)
-- **읽기** → 항상 **로컬에서** 읽음 (local-first). GitHub는 세션 경계에서만 동기화
-
+읽기는 항상 **로컬에서** 일어나고(local-first), GitHub는 세션 경계에서만 동기화합니다.
 기억은 프로젝트별 폴더로 자동 분리됩니다:
 
 ```
@@ -98,33 +146,6 @@ flowchart LR
 | **연결 전 사용** | git 미연결 시 로컬 저장만 하고 graceful하게 안내 (멱등) |
 
 > 동시 작업 보존은 두 PC를 시뮬레이션한 테스트로 검증했습니다.
-
----
-
-## 📦 설치
-
-**필요 조건**
-- [Claude Code](https://claude.com/claude-code)
-- [GitHub CLI (`gh`)](https://cli.github.com/) — 로그인 상태(`gh auth login`). PC 간 동기화에 사용.
-
-**설치** (Claude Code 안에서)
-
-```text
-/plugin marketplace add shimeeuisuk/claude-memory-plugin
-/plugin install claude-memory
-```
-
-> 로컬에서 먼저 시험하려면: `/plugin marketplace add ~/claude-memory-plugin`
-
----
-
-## 🚀 사용법
-
-```text
-/claude-memory:setup       # 최초 1회 — 내 GitHub에 메모리 저장소 연결 (자동 생성)
-/claude-memory:remember    # 작업하다가 — 지금까지 한 일을 저장
-/claude-memory:recall      # 다음 날 / 다른 PC에서 — 이어서
-```
 
 ---
 
