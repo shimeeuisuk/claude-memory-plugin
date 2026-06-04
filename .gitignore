@@ -1,0 +1,7 @@
+# macOS
+.DS_Store
+
+# 개발 중 메모 — 공개 repo에 올리고 싶지 않으면 주석 해제
+PROJECT-NOTES.md
+
+# 로컬 메모리 저장소는 이 repo와 무관 (~/.claude-memory 는 별도 private repo)

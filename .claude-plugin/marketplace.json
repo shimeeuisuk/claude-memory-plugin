@@ -1,0 +1,13 @@
+{
+  "name": "claude-memory-marketplace",
+  "owner": {
+    "name": "kaia"
+  },
+  "plugins": [
+    {
+      "name": "claude-memory",
+      "source": "./",
+      "description": "Cross-PC persistent memory for Claude Code. Saves curated work summaries as markdown and syncs them to each user's own GitHub, so context survives across sessions and machines."
+    }
+  ]
+}
