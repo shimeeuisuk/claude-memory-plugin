@@ -3,7 +3,7 @@
   "description": "Cross-PC persistent memory for Claude Code. Saves curated work summaries as markdown and syncs them to each user's own GitHub, so context survives across sessions and machines.",
   "version": "0.1.0",
   "author": {
-    "name": "kaia"
+    "name": "Euisuk Shim"
   },
   "keywords": [
     "memory",
