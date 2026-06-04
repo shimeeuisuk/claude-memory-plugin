@@ -7,7 +7,10 @@
 #        private repo 를 즉석에서 생성·연결한다. (= 각자 자기 깃헙)
 #
 #  멱등(idempotent): 여러 번 실행해도 안전. 이미 연결돼 있으면 알림만.
-#  exit 0 = 성공/이미됨, exit 1 = 수동 연결 필요(안내 출력)
+#  항상 exit 0 (정상 흐름은 에러가 아님). 결과는 출력 첫 줄의 STATUS= 로 알린다:
+#    STATUS=connected           → 연결 완료(또는 이미 연결됨)
+#    STATUS=needs-confirmation  → repo 생성 전 사용자 동의 필요 (ACCOUNT=, REPO= 동반)
+#    STATUS=manual              → gh 없음, 수동 연결 안내
 # ============================================================
 set -euo pipefail
 
@@ -29,6 +32,7 @@ fi
 
 # 2. 이미 연결돼 있으면 멈춤 (멱등)
 if git remote get-url origin >/dev/null 2>&1; then
+  echo "STATUS=connected"
   echo "[setup] 이미 연결됨 → $(git remote get-url origin)"
   echo "[setup] 다른 PC라면 'git pull' 로 기존 기억을 받아올 수 있음."
   exit 0
@@ -39,12 +43,15 @@ if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
   USER_LOGIN="$(gh api user --jq .login 2>/dev/null || echo '?')"
 
   # repo 생성 전 확인 (--yes 또는 CLAUDE_MEMORY_YES=1 이면 건너뜀)
+  # 에러가 아니라 정상 흐름이므로 exit 0 + STATUS 표식으로 알린다 (빨간 Error 방지).
   if [ "${1:-}" != "--yes" ] && [ "${CLAUDE_MEMORY_YES:-}" != "1" ]; then
     if ! gh repo view "$USER_LOGIN/$REPO_NAME" >/dev/null 2>&1; then
-      echo "[setup] '$USER_LOGIN' 계정에 private repo '$REPO_NAME' 를 새로 만들려고 합니다."
-      echo "[setup] 동의하면 다시 실행: bash setup-store.sh --yes   (또는 setup 명령에 동의 전달)"
-      echo "[setup] 이미 있는 repo에 연결만 하려면 먼저 GitHub에서 '$REPO_NAME' 를 만들어 두세요."
-      exit 3   # exit 3 = 사용자 확인 대기
+      echo "STATUS=needs-confirmation"
+      echo "ACCOUNT=$USER_LOGIN"
+      echo "REPO=$REPO_NAME"
+      echo "[setup] '$USER_LOGIN' 계정에 private repo '$REPO_NAME' 를 새로 만들지 확인이 필요합니다."
+      echo "[setup] 동의 시 재실행: bash setup-store.sh --yes"
+      exit 0   # 에러 아님 — 확인 대기. Claude가 STATUS 줄을 읽어 사용자에게 물음.
     fi
   fi
 
@@ -61,11 +68,13 @@ if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
     gh repo create "$REPO_NAME" --private --source=. --remote=origin --push
     echo "[setup] ✅ '$USER_LOGIN' 계정에 private repo '$REPO_NAME' 생성 + 연결 완료"
   fi
+  echo "STATUS=connected"
   exit 0
 fi
 
-# 4. gh 없으면 수동 연결 안내 (fail-soft)
+# 4. gh 없으면 수동 연결 안내 (fail-soft, 에러 아님 → exit 0 + STATUS)
 cat <<EOF
+STATUS=manual
 [setup] GitHub CLI(gh) 미설치 또는 미로그인 → 수동 연결이 필요합니다.
 
   방법 A) gh 설치 후 자동:
@@ -81,4 +90,4 @@ cat <<EOF
         git remote add origin <복사한-repo-URL>
         git push -u origin main
 EOF
-exit 1
+exit 0

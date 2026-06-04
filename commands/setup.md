@@ -14,15 +14,16 @@ allowed-tools: Bash, Read
    ```
    - `${CLAUDE_PLUGIN_ROOT}` 가 비어있으면, 이 명령어 파일 기준 상위의 `scripts/setup-store.sh` 경로를 찾아 실행.
 
-2. **결과 해석 후 사용자에게 보고**:
-   - 성공(exit 0) → 어느 계정의 어떤 repo에 연결됐는지 한 줄로 알리고,
-     "이제 `/claude-memory:remember` 로 저장하면 자동으로 백업됩니다" 안내.
-   - **확인 대기(exit 3)** → 새 private repo를 만들기 전 사용자 동의를 받는 단계.
-     스크립트가 출력한 repo 이름·계정을 보여주고 **"여기에 만들까요?"** 라고 물어본다.
-     - 사용자가 동의하면 → `bash "${CLAUDE_PLUGIN_ROOT}/scripts/setup-store.sh" --yes` 로 재실행.
-     - 거절하면 → 만들지 않고 멈춘다 (수동 연결 방법 안내).
-   - 수동 안내(exit 1) → 스크립트가 출력한 A/B 방법을 사용자에게 그대로 전달하고,
-     사용자가 `gh auth login` 을 할지, repo URL을 직접 줄지 물어 도와준다.
+2. **출력 첫 줄의 `STATUS=` 표식을 읽고 분기** (스크립트는 항상 exit 0 — 에러로 취급하지 말 것):
+   - `STATUS=connected` → 연결 완료. 어느 계정/어떤 repo인지 한 줄로 알리고,
+     "이제 `/claude-memory:remember` 로 저장하면 자동 백업됩니다" 안내.
+   - `STATUS=needs-confirmation` → 새 private repo를 만들기 전 **동의 단계**(에러 아님).
+     출력의 `ACCOUNT=` / `REPO=` 를 사용자에게 보여주고 **"이 계정에 만들까요?"** 라고 물어본다.
+     - ⚠️ `ACCOUNT=` 가 사용자가 의도한 계정이 맞는지 꼭 확인하게 한다 (회사/개인 계정 혼동 방지).
+     - 동의하면 → `bash "${CLAUDE_PLUGIN_ROOT}/scripts/setup-store.sh" --yes` 로 재실행.
+     - 거절/계정이 틀리면 → 만들지 말고, `gh auth switch` 등으로 계정을 바꾸도록 안내.
+   - `STATUS=manual` → gh 미설치/미로그인. 출력의 A/B 방법을 그대로 전달하고
+     `gh auth login` 또는 repo URL 직접 연결을 도와준다.
 
 3. **확인**: 연결 후 `cd ~/.claude-memory && git remote -v` 로 origin이 사용자 본인 계정인지 확인해 보여준다.
 

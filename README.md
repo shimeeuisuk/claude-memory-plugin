@@ -37,6 +37,18 @@ so context survives across sessions and machines.
 
 > To try it from a local clone instead: `/plugin marketplace add ~/claude-memory-plugin`
 
+## Updating
+
+Installed plugins are local copies — they do **not** auto-update when this repo changes.
+To pull the latest version:
+
+```
+/plugin marketplace update claude-memory-marketplace
+/plugin update claude-memory
+```
+
+> Or open `/plugin` → **Marketplaces / Installed** tab and update from there.
+
 ## Usage
 
 ```
