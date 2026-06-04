@@ -21,6 +21,8 @@ so context survives across sessions and machines.
 
 - 🧠 **Persistent memory** across Claude Code sessions — no more re-explaining context.
 - 🔄 **Cross-PC sync** — pick up on your work PC exactly where your home PC left off.
+- ⚡ **Fast resume** — recall reads an auto-maintained per-project *digest* (current state + next steps), not every file — so context stays small.
+- 📊 **Project dashboard** — a top-level index of all projects and their last state, at a glance.
 - 👤 **Your data, your account** — each user's memory syncs to *their own private* GitHub repo.
 - 🗂️ **Plain Markdown** — human-readable, zero dependencies, git-friendly, greppable.
 - 🪶 **Local-first** — works offline; syncs automatically when online.

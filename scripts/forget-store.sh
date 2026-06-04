@@ -19,10 +19,10 @@ cd "$STORE"
 
 CMD="${1:-list}"
 
-# --- 목록 ---
+# --- 목록 --- (자동관리 파일 _digest/_INDEX 와 README 는 제외)
 if [ "$CMD" = "list" ]; then
   echo "STATUS=list"
-  find . -type f -name '*.md' -not -path './.git/*' ! -name 'README.md' 2>/dev/null \
+  find . -type f -name '*.md' -not -path './.git/*' ! -name 'README.md' ! -name '_*.md' 2>/dev/null \
     | sed 's|^\./||' | sort || true
   exit 0
 fi
@@ -34,9 +34,10 @@ if [ "$CMD" = "remove" ]; then
 
   DELETED=0
   for f in "$@"; do
-    # 안전: store 밖 경로·상위 이동(..) 차단
+    # 안전: store 밖 경로·상위 이동(..) 차단 + 자동관리 파일(_digest/_INDEX) 보호
     case "$f" in
       /*|*..*) echo "[forget] 거부(잘못된 경로): $f"; continue ;;
+      _*.md|*/_*.md) echo "[forget] 거부(자동관리 파일): $f"; continue ;;
     esac
     if [ -f "$f" ]; then
       rm -f "$f"; DELETED=$((DELETED+1)); echo "[forget] 삭제: $f"

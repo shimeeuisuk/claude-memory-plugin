@@ -32,13 +32,44 @@ allowed-tools: Bash, Write, Read
 - ...
 ```
 
-5. **동기화 시도**: 플러그인의 `scripts/sync-push.sh` 를 실행해 백업한다.
+5. **다이제스트 자동 갱신** ★ (재개 속도·컨텍스트 절약의 핵심):
+   `~/.claude-memory/<project>/_digest.md` 를 이 형식으로 **새로 써서 최신 상태로 유지**한다.
+   - 기존 `_digest.md` 가 있으면 먼저 읽어서 **"핵심 결정"은 carry-forward**(유지)하고, 상태·진행·다음 스텝만 이번 내용으로 갱신.
+   ```markdown
+   # <project> — 작업 다이제스트
+
+   - **updated**: <YYYY-MM-DD HH:mm>
+   - **상태**: <한 줄 현재 상태>
+
+   ## 마지막 진행
+   - <최근 한 일 2~3줄>
+
+   ## 다음 스텝
+   - [ ] <이번 next 반영>
+
+   ## 핵심 결정 (carry-forward)
+   - <바뀌면 안 되는 결정들 — 기존 것 유지 + 새 것 추가>
+   ```
+
+6. **INDEX 자동 갱신**:
+   `~/.claude-memory/_INDEX.md` 의 이 프로젝트 행을 갱신(없으면 추가)한다.
+   ```markdown
+   # claude-memory — 프로젝트 현황
+
+   | 프로젝트 | 상태 | 마지막 갱신 |
+   | --- | --- | --- |
+   | <project> | <한 줄 상태> | <YYYY-MM-DD HH:mm> |
+   ```
+
+7. **동기화 시도**: 플러그인의 `scripts/sync-push.sh` 를 실행해 백업한다 (일기·다이제스트·INDEX 한 번에).
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/sync-push.sh"
    ```
-   - 이 스크립트는 store가 git repo이고 remote가 있을 때만 commit+push (멱등·fail-soft).
+   - store가 git repo이고 remote가 있을 때만 commit+push (멱등·fail-soft).
    - 아직 연결 안 됐으면 조용히 넘어가므로, 그 경우 끝에 한 줄로
      "💡 `/claude-memory:setup` 하면 다른 PC에서도 이어집니다" 안내.
-6. **보고**: 저장한 파일 경로 + summary + next 를 사용자에게 1줄씩 보여준다.
+
+8. **보고**: 저장한 파일 경로 + summary + next 를 사용자에게 1줄씩 보여준다.
 
 현재 날짜·시간은 `date '+%Y-%m-%d %H:%M'` 로 실제 확인한다.
+`_digest.md` · `_INDEX.md` 는 자동 관리 파일이므로 일기처럼 날짜 파일로 만들지 말 것.
