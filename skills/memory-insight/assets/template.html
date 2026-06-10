@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<!--
+  template.html — memory-insight 그래프 (self-contained, read-only view)
+
+  - 렌더링 lib(cytoscape)만 CDN(pinned)에서 온다.
+  - 그래프 데이터는 build-graph.py 가 아래 __GRAPH_DATA__ 자리에
+    inline 으로 주입한다. 기억 데이터는 네트워크로 나가지 않는다.
+  - Web Interface Guidelines 적용: dark color-scheme, prefers-reduced-motion,
+    aria-live 상태, focus-visible, empty state, tabular-nums.
+-->
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0d1117" />
+  <title>claude-memory — keyword graph</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #131316; color: #e6edf3;
+      height: 100vh; display: flex; flex-direction: column;
+    }
+    header {
+      display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap;
+      padding: 0.75rem 1rem; border-bottom: 1px solid #30363d;
+    }
+    header h1 { font-size: 1rem; margin: 0; text-wrap: balance; }
+    .stats { display: flex; gap: 1rem; margin-left: auto; color: #8b949e; font-size: 0.85rem; }
+    .stats b { color: #e6edf3; font-variant-numeric: tabular-nums; }
+    main { flex: 1; display: flex; min-height: 0; }
+    #graph { flex: 1; min-width: 0; background: #131316; }
+    aside {
+      width: 16rem; border-left: 1px solid #2a2a30; padding: 1rem;
+      overflow-y: auto; background: #0c0c0e;
+    }
+    aside h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: #8b949e; margin: 0 0 0.5rem; }
+    .bridges { list-style: none; margin: 0 0 1.5rem; padding: 0; }
+    .bridges li { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.25rem 0; border-bottom: 1px solid #21262d; }
+    .bridges .count { color: #58a6ff; font-variant-numeric: tabular-nums; }
+    .legend { display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.85rem; color: #8b949e; }
+    .legend span::before, .legend button::before { content: ""; display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 50%; margin-right: 0.5rem; vertical-align: middle; background: var(--swatch, transparent); flex: none; }
+    .legend .kw::before { background: #5c6370; }
+    .legend .bridge::before { background: #e8973a; }
+    .legend button { display: flex; align-items: center; font: inherit; color: inherit; background: none; border: none; padding: 0.1rem 0; cursor: pointer; text-align: left; }
+    .legend button[aria-pressed="false"] { opacity: 0.4; text-decoration: line-through; }
+    .legend button:focus-visible { outline: 2px solid #58a6ff; outline-offset: 2px; border-radius: 4px; }
+    button[aria-pressed="true"]#bridgeonly { background: #1f6feb33; border-color: #58a6ff; }
+    .controls { display: flex; gap: 0.5rem; }
+    button {
+      font: inherit; color: #e6edf3; background: #21262d;
+      border: 1px solid #30363d; border-radius: 6px; padding: 0.3rem 0.7rem; cursor: pointer;
+    }
+    button:hover { background: #30363d; border-color: #8b949e; }
+    button:focus-visible { outline: 2px solid #58a6ff; outline-offset: 2px; }
+    #empty {
+      flex: 1; display: none; flex-direction: column; align-items: center; justify-content: center;
+      gap: 0.5rem; color: #8b949e; text-align: center; padding: 2rem;
+    }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
+  <!-- 연속 물리 시뮬레이션(드래그 반응·중력 느낌)을 위한 cola 레이아웃. lib만 CDN. -->
+  <script src="https://cdn.jsdelivr.net/npm/webcola@3.4.0/WebCola/cola.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cytoscape-cola@2.5.1/cytoscape-cola.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1 translate="no">claude-memory · keyword graph</h1>
+    <div class="controls">
+      <button id="fit" type="button" aria-label="그래프를 화면에 맞춤">화면 맞춤</button>
+      <button id="relayout" type="button" aria-label="레이아웃 다시 계산">재배치</button>
+      <button id="bridgeonly" type="button" aria-pressed="false" aria-label="프로젝트를 잇는 keyword만 보기">bridge만</button>
+    </div>
+    <p class="stats" id="stats" aria-live="polite"></p>
+  </header>
+  <main>
+    <div id="graph" role="img" aria-label="keyword와 project를 잇는 관계 그래프"></div>
+    <div id="empty">
+      <strong>표시할 기억이 없습니다.</strong>
+      <span>먼저 `/claude-memory:remember` 로 기억을 남겨 보세요.</span>
+    </div>
+    <aside aria-label="요약">
+      <h2>프로젝트를 잇는 keyword</h2>
+      <ul class="bridges" id="bridges"></ul>
+      <h2>프로젝트 색</h2>
+      <div class="legend" id="projlegend"></div>
+      <h2>범례</h2>
+      <div class="legend">
+        <span class="kw">keyword</span>
+        <span class="bridge">bridge (2+ 프로젝트 연결)</span>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    // build-graph.py 가 아래 자리에 그래프 데이터를 inline 주입한다.
+    const DATA = /*__GRAPH_DATA__*/null;
+
+    const fmtInt = new Intl.NumberFormat();
+    const $ = (id) => document.getElementById(id);
+
+    function renderStats(s) {
+      $("stats").textContent =
+        `문서 ${fmtInt.format(s.documents)} · project ${fmtInt.format(s.projects)} · ` +
+        `keyword ${fmtInt.format(s.keywords)} · 연결 ${fmtInt.format(s.edges)} · ` +
+        `bridge ${fmtInt.format(s.bridges)}`;
+    }
+
+    function renderProjectLegend(list) {
+      const box = $("projlegend");
+      box.innerHTML = "";
+      for (const p of list || []) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.dataset.project = p.project;
+        b.setAttribute("aria-pressed", "true");  // 켜짐 = 표시 중
+        b.setAttribute("aria-label", p.project + " 문서 표시 토글");
+        b.style.setProperty("--swatch", p.color);
+        b.textContent = p.project;
+        box.appendChild(b);
+      }
+    }
+
+    function renderBridges(list) {
+      const ul = $("bridges");
+      if (!list || !list.length) { ul.innerHTML = "<li>아직 프로젝트를 잇는 keyword가 없습니다.</li>"; return; }
+      ul.innerHTML = "";
+      for (const b of list) {
+        const li = document.createElement("li");
+        const name = document.createElement("span"); name.textContent = b.keyword;
+        const cnt = document.createElement("span"); cnt.className = "count";
+        cnt.textContent = `${fmtInt.format(b.projects)}개`;
+        li.append(name, cnt); ul.appendChild(li);
+      }
+    }
+
+    function init() {
+      if (!DATA || !DATA.nodes || DATA.nodes.length === 0) {
+        $("graph").style.display = "none";
+        $("empty").style.display = "flex";
+        renderStats({ documents: 0, projects: 0, keywords: 0, edges: 0, bridges: 0 });
+        renderBridges([]);
+        renderProjectLegend([]);
+        return;
+      }
+      renderStats(DATA.stats);
+      renderBridges(DATA.stats.top_bridges);
+      renderProjectLegend(DATA.stats.project_colors);
+
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const hasCola = !!(window.cytoscapeCola || (window.cola && cytoscape("layout", "cola")));
+      // Obsidian 느낌: 모든 노드는 원(circle), 크기는 연결 수(degree)에 비례.
+      // 라벨은 줌아웃하면 페이드(min-zoomed-font-size), 엣지는 가늘고 은은하게.
+      // 물리: cola 가 있으면 연속 시뮬레이션(드래그 반응·중력감), 없으면 cose 로 폴백.
+      const makeLayout = () => {
+        if (hasCola) {
+          return reduceMotion
+            ? { name: "cola", infinite: false, animate: false, maxSimulationTime: 2000,
+                nodeSpacing: 12, edgeLength: 95, handleDisconnected: true, fit: true }
+            : { name: "cola", infinite: true, fit: false, nodeSpacing: 12,
+                edgeLength: 95, handleDisconnected: true, convergenceThreshold: 0.001 };
+        }
+        return { name: "cose", animate: !reduceMotion, padding: 40,
+                 nodeRepulsion: 12000, idealEdgeLength: 90, nodeOverlap: 16,
+                 componentSpacing: 120, gravity: 0.2 };
+      };
+      const cy = cytoscape({
+        container: $("graph"),
+        elements: { nodes: DATA.nodes, edges: DATA.edges },
+        style: [
+          { selector: "node", style: {
+            shape: "ellipse",
+            width: "mapData(deg, 1, 8, 10, 46)", height: "mapData(deg, 1, 8, 10, 46)",
+            label: "data(label)", color: "#b9c0c8",
+            "font-size": 10, "text-valign": "bottom", "text-margin-y": 4,
+            "min-zoomed-font-size": 9, "text-max-width": 120,
+            "border-width": 0, "transition-property": "opacity, background-color",
+            "transition-duration": reduceMotion ? "0s" : "0.18s" } },
+          { selector: "node[type='doc']", style: { "background-color": "data(color)", color: "#d7dce2", "font-size": 11 } },
+          { selector: "node[type='keyword']", style: { "background-color": "#5c6370", color: "#9aa3af" } },
+          { selector: "node[?bridge]", style: { "background-color": "#e8973a", color: "#f3d9bd", "font-size": 11 } },
+          { selector: "edge", style: {
+            width: 0.7, "line-color": "#2f2f37", opacity: 0.4, "curve-style": "bezier",
+            "transition-property": "opacity, line-color, width", "transition-duration": reduceMotion ? "0s" : "0.18s" } },
+          { selector: ".dim", style: { opacity: 0.08 } },
+          { selector: "node.focus", style: { "border-width": 2, "border-color": "#e6edf3" } },
+          { selector: "edge.focus", style: { width: 1.2, "line-color": "#8b949e", opacity: 0.9 } },
+          { selector: ".hidden", style: { display: "none" } },
+        ],
+        layout: { name: "preset" },
+        wheelSensitivity: 0.2,
+      });
+
+      // 연결 수에 따라 크기 결정 (degree 를 data 로 주입 후 style 의 mapData 가 사용)
+      cy.batch(() => cy.nodes().forEach((n) => n.data("deg", n.degree())));
+
+      // 물리 시뮬레이션 시작 (infinite cola 면 계속 살아있는다). 실패하면 cose 폴백.
+      const runLayout = () => {
+        const visible = { eles: cy.elements(":visible") };
+        try { const l = cy.layout(Object.assign(makeLayout(), visible)); l.run(); return l; }
+        catch (e) {
+          const l = cy.layout(Object.assign(
+            { name: "cose", animate: !reduceMotion, padding: 40, nodeRepulsion: 12000 }, visible));
+          l.run(); return l;
+        }
+      };
+      let layout = runLayout();
+      if (!reduceMotion && hasCola) setTimeout(() => cy.fit(undefined, 50), 700);
+
+      // 호버하면 이웃만 강조하고 나머지는 흐려진다 (Obsidian 의 focus 효과)
+      const focusOn = (node) => {
+        const nhood = node.closedNeighborhood();
+        cy.elements().addClass("dim");
+        nhood.removeClass("dim").addClass("focus");
+      };
+      const clearFocus = () => cy.elements().removeClass("dim focus");
+      cy.on("mouseover", "node", (e) => focusOn(e.target));
+      cy.on("mouseout", "node", clearFocus);
+      cy.on("tap", (e) => { if (e.target === cy) clearFocus(); });
+
+      // ---- 필터 (bridge만 보기 + 프로젝트 토글) ----
+      const state = { bridgeOnly: false, disabled: new Set() };
+      const FADE_MS = reduceMotion ? 0 : 220;
+
+      // 현재 state 기준으로 "숨겨야 할" 요소 집합을 계산한다 (class 를 바로 바꾸지 않음).
+      const computeHidden = () => {
+        const docVis = {};
+        cy.nodes("[type='doc']").forEach((n) => { docVis[n.id()] = !state.disabled.has(n.data("project")); });
+        const kwVis = {};
+        cy.nodes("[type='keyword']").forEach((k) => {
+          let v = !state.bridgeOnly || !!k.data("bridge");
+          if (v) v = k.neighborhood("node[type='doc']").some((d) => docVis[d.id()]);
+          kwVis[k.id()] = v;
+        });
+        cy.nodes("[type='doc']").forEach((d) => {
+          if (docVis[d.id()]) docVis[d.id()] = d.neighborhood("node[type='keyword']").some((k) => kwVis[k.id()]);
+        });
+        let hide = cy.collection();
+        cy.nodes().forEach((n) => {
+          const vis = n.data("type") === "doc" ? docVis[n.id()] : kwVis[n.id()];
+          if (!vis) hide = hide.union(n);
+        });
+        cy.edges().forEach((e) => {
+          if (hide.contains(e.source()) || hide.contains(e.target())) hide = hide.union(e);
+        });
+        return hide;
+      };
+
+      // 사라질 건 fade-out, 나타날 건 fade-in, 남는 건 애니메이션 레이아웃으로 재정렬.
+      const relayout = (eles) => {
+        if (layout && layout.stop) layout.stop();
+        const opts = Object.assign(makeLayout(), { eles: eles || cy.elements(":visible"), fit: false });
+        if (opts.name === "cola") { opts.infinite = false; opts.animate = true; opts.maxSimulationTime = 1200; }
+        else { opts.animate = true; opts.animationDuration = 500; }
+        let l;
+        try { l = cy.layout(opts); }
+        catch (e) { l = cy.layout({ name: "cose", animate: true, padding: 40, fit: false, eles: opts.eles }); }
+        l.one("layoutstop", () => {
+          if (!reduceMotion) cy.animate({ fit: { eles: cy.elements(":visible"), padding: 50 } }, { duration: 320 });
+          if (!reduceMotion && hasCola) layout = runLayout(); // 다시 살아있는 물리로 복귀
+        });
+        l.run();
+        layout = l;
+      };
+
+      const refilter = () => {
+        const hide = computeHidden();
+        const show = cy.elements(".hidden").not(hide);     // 지금 숨겨졌지만 다시 나타나야 함
+        const hidingNow = hide.filter(":visible");          // 지금 보이지만 사라져야 함
+        const layoutEles = cy.elements(":visible").not(hidingNow).union(show);
+
+        if (show.length) {
+          show.removeClass("hidden").style("opacity", 0);
+          show.animate({ style: { opacity: 1 } }, { duration: FADE_MS, complete: () => show.style("opacity", "") });
+        }
+        if (hidingNow.length && FADE_MS) {
+          hidingNow.animate({ style: { opacity: 0 } },
+            { duration: FADE_MS, complete: () => hidingNow.addClass("hidden").style("opacity", "") });
+        } else {
+          hidingNow.addClass("hidden");
+        }
+        relayout(layoutEles);
+      };
+
+      $("fit").addEventListener("click", () =>
+        cy.animate({ fit: { eles: cy.elements(":visible"), padding: 40 } }, { duration: reduceMotion ? 0 : 320 }));
+      $("relayout").addEventListener("click", () => {
+        if (layout && layout.stop) layout.stop();
+        layout = runLayout();
+        if (!reduceMotion && hasCola) setTimeout(() => cy.fit(cy.elements(":visible"), 50), 700);
+      });
+
+      const bridgeBtn = $("bridgeonly");
+      bridgeBtn.addEventListener("click", () => {
+        state.bridgeOnly = !state.bridgeOnly;
+        bridgeBtn.setAttribute("aria-pressed", String(state.bridgeOnly));
+        refilter();
+      });
+
+      $("projlegend").addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-project]");
+        if (!btn) return;
+        const proj = btn.dataset.project;
+        if (state.disabled.has(proj)) state.disabled.delete(proj); else state.disabled.add(proj);
+        btn.setAttribute("aria-pressed", String(!state.disabled.has(proj)));
+        refilter();
+      });
+    }
+
+    init();
+  </script>
+</body>
+</html>
